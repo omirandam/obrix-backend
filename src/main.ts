@@ -15,6 +15,12 @@ async function bootstrap() {
     }),
   );
 
+  app.enableCors({
+    origin: true, // ← acepta cualquier origen
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization',
+  });
+
   // Swagger
   const config = new DocumentBuilder()
     .setTitle('Obrix API')
