@@ -1,0 +1,71 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+}
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  legalName String?
+  rfc       String?  @db.VarChar(13)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+
+  @@map("company")
+  @@unique([rfc], map: "ux_company_rfc")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  companyId String
+  email     String
+  fullName  String
+  username  String
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  modules UserModule[]
+
+  @@map("user")
+  @@unique([companyId, email], map: "ux_user_company_email")
+  @@index([companyId], map: "ix_user_company")
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  icon        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserModule[]
+
+  @@map("module")
+}
+
+model UserModule {
+  id        String   @id @default(uuid())
+  userId    String
+  moduleId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId], map: "ux_user_module")
+  @@index([userId], map: "ix_user_module_user")
+  @@index([moduleId], map: "ix_user_module_module")
+  @@map("user_module")
+}
+
