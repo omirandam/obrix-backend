@@ -42,6 +42,11 @@ export class AuthService {
       .map((um) => um.module)
       .filter((m) => m.isActive); // opcional: solo activos
 
+    const company = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { id: true, name: true, legalName: true, rfc: true },
+    });
+
     return {
       access_token,
       token_type: 'Bearer',
@@ -52,11 +57,19 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
       },
+      company: {
+        id: company?.id,
+        name: company?.name,
+        legalName: company?.legalName,
+        rfc: company?.rfc,
+      },
       modules: modules.map((m) => ({
         id: m.id,
         key: m.key,
         name: m.name,
         icon: m.icon,
+        description: m.description,
+        isActive: m.isActive,
       })),
     };
   }
