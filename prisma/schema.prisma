@@ -25,7 +25,7 @@ model User {
   companyId String
   email     String
   fullName  String
-  username  String
+  username String @unique
   password  String
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
