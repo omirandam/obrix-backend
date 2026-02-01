@@ -21,21 +21,24 @@ async function bootstrap() {
     allowedHeaders: 'Content-Type, Authorization',
   });
 
-  // Swagger
-  const config = new DocumentBuilder()
-    .setTitle('Obrix API')
-    .setDescription('CRUD Company & User')
-    .setVersion('1.0.0')
-    .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
-
+  // ✅ Swagger SOLO en desarrollo
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Obrix API')
+      .setDescription('CRUD Company & User')
+      .setVersion('1.0.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api', app, document);
+  }
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   await app.listen(port, '0.0.0.0');
   // ✅ imprimir URL en consola
   console.log(`🚀 API running on: http://localhost:${port}`);
-  console.log(`📚 Swagger on:     http://localhost:${port}/api`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📚 Swagger available at /api`);
+    console.log(`📚 Swagger on:     http://localhost:${port}/api`);
+  }
 }
 
 bootstrap();
