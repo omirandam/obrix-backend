@@ -45,6 +45,7 @@ export class UserService {
           username: dto.username,
           fullName: dto.fullName,
           password: hashedPassword,
+          isActive: dto.isActive,
         },
         select: this.userSelect,
       });
@@ -65,6 +66,7 @@ export class UserService {
       email: dto.email,
       username: dto.username,
       fullName: dto.fullName,
+      isActive: dto.isActive,
     };
 
     if (dto.password) {
