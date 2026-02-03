@@ -207,4 +207,76 @@ export class UserService {
     });
     return new Set(rows.map((r) => r.moduleId));
   }
+
+  async getAvailableModulesForUser(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companyId: true },
+    });
+    if (!user) throw new NotFoundException('User no encontrado');
+
+    const rows = await this.prisma.companyModule.findMany({
+      where: { companyId: user.companyId, isEnabled: true },
+      include: { module: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // solo módulos activos
+    return rows.map((r) => r.module).filter((m) => m.isActive);
+  }
+
+  async setUserModules(userId: string, moduleIds: string[]) {
+    // 1) trae usuario+company
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companyId: true },
+    });
+    if (!user) throw new NotFoundException('User no encontrado');
+
+    // 2) validar que los módulos existan
+    const found = await this.prisma.module.findMany({
+      where: { id: { in: moduleIds } },
+      select: { id: true, isActive: true },
+    });
+
+    if (found.length !== moduleIds.length) {
+      const foundIds = new Set(found.map((x) => x.id));
+      const missing = moduleIds.filter((id) => !foundIds.has(id));
+      throw new NotFoundException(
+        `Módulos no encontrados: ${missing.join(', ')}`,
+      );
+    }
+
+    const inactive = found.filter((m) => !m.isActive).map((m) => m.id);
+    if (inactive.length) {
+      throw new ConflictException(`Módulos inactivos: ${inactive.join(', ')}`);
+    }
+
+    // 3) validar contra company_module (isEnabled=true)
+    const enabled = await this.prisma.companyModule.findMany({
+      where: { companyId: user.companyId, isEnabled: true },
+      select: { moduleId: true },
+    });
+    const enabledSet = new Set(enabled.map((x) => x.moduleId));
+
+    const notAllowed = moduleIds.filter((id) => !enabledSet.has(id));
+    if (notAllowed.length) {
+      throw new ConflictException(
+        `Módulos no habilitados para la empresa: ${notAllowed.join(', ')}`,
+      );
+    }
+
+    // 4) reemplazo total: borra y crea
+    await this.prisma.userModule.deleteMany({ where: { userId } });
+
+    if (moduleIds.length) {
+      await this.prisma.userModule.createMany({
+        data: moduleIds.map((moduleId) => ({ userId, moduleId })),
+        skipDuplicates: true,
+      });
+    }
+
+    // 5) devolver efectivos
+    return this.getModules(userId); // tu getModules ya filtra por company_module + isActive si lo actualizaste
+  }
 }

@@ -6,11 +6,13 @@ import {
   Param,
   Patch,
   Post,
+  Put,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SetUserModulesDto } from './dto/set-user-modules.dto';
 
 @ApiTags('User')
 @Controller()
@@ -51,5 +53,20 @@ export class UserController {
   @ApiOperation({ summary: 'Eliminar user' })
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+
+  @Get(':id/available-modules')
+  availableModules(@Param('id') userId: string) {
+    return this.service.getAvailableModulesForUser(userId);
+  }
+
+  @Put(':id/modules')
+  setModules(@Param('id') userId: string, @Body() dto: SetUserModulesDto) {
+    return this.service.setUserModules(userId, dto.moduleIds);
+  }
+
+  @Get(':id/modules')
+  getModules(@Param('id') userId: string) {
+    return this.service.getModules(userId);
   }
 }
