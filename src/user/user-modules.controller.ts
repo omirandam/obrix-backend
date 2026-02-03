@@ -19,16 +19,4 @@ export class UserModulesController {
   assign(@Param('id') userId: string, @Body() dto: AssignModulesDto) {
     return this.users.assignModules(userId, dto.moduleIds);
   }
-
-  @Delete(':id/modules/:moduleId')
-  @ApiOperation({ summary: 'Remover un módulo de un user' })
-  removeOne(@Param('id') userId: string, @Param('moduleId') moduleId: string) {
-    return this.users.removeModule(userId, moduleId);
-  }
-
-  @Delete(':id/modules')
-  @ApiOperation({ summary: 'Quitar TODOS los módulos de un user' })
-  clear(@Param('id') userId: string) {
-    return this.users.clearModules(userId);
-  }
 }

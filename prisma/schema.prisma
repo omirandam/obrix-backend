@@ -14,29 +14,11 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
+  users        User[]
+  companyModules CompanyModule[]
 
   @@map("company")
   @@unique([rfc], map: "ux_company_rfc")
-}
-
-model User {
-  id        String   @id @default(uuid())
-  companyId String
-  email     String
-  fullName  String
-  username String @unique
-  password  String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company   Company  @relation(fields: [companyId], references: [id])
-  modules UserModule[]
-
-  @@map("user")
-  @@unique([companyId, email], map: "ux_user_company_email")
-  @@index([companyId], map: "ix_user_company")
 }
 
 model Module {
@@ -49,9 +31,46 @@ model Module {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  users       UserModule[]
+  users          UserModule[]
+  companies      CompanyModule[]
 
   @@map("module")
+}
+
+model CompanyModule {
+  id        String   @id @default(uuid())
+  companyId String
+  moduleId  String
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  module    Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, moduleId], map: "ux_company_module")
+  @@index([companyId], map: "ix_company_module_company")
+  @@index([moduleId], map: "ix_company_module_module")
+  @@map("company_module")
+}
+
+
+model User {
+  id        String   @id @default(uuid())
+  companyId String
+  email     String
+  fullName  String
+  username  String   @unique
+  password  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  modules   UserModule[]
+
+  @@map("user")
+  @@unique([companyId, email], map: "ux_user_company_email")
+  @@index([companyId], map: "ix_user_company")
 }
 
 model UserModule {

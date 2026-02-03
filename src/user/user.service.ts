@@ -132,8 +132,13 @@ export class UserService {
   //Modules
 
   async getModules(userId: string) {
-    // valida user
-    await this.findOne(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companyId: true },
+    });
+    if (!user) throw new NotFoundException('User no encontrado');
+
+    const enabledSet = await this.getEnabledCompanyModuleIds(user.companyId);
 
     const rows = await this.prisma.userModule.findMany({
       where: { userId },
@@ -141,17 +146,23 @@ export class UserService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return rows.map((r) => r.module);
+    // efectivos: asignados al user + habilitados para su company + activos en catálogo
+    return rows
+      .map((r) => r.module)
+      .filter((m) => m.isActive && enabledSet.has(m.id));
   }
 
   async assignModules(userId: string, moduleIds: string[]) {
-    // valida user
-    await this.findOne(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, companyId: true },
+    });
+    if (!user) throw new NotFoundException('User no encontrado');
 
-    // opcional: valida que existan los módulos
+    // 1) valida que existan los módulos
     const found = await this.prisma.module.findMany({
       where: { id: { in: moduleIds } },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
 
     if (found.length !== moduleIds.length) {
@@ -162,7 +173,25 @@ export class UserService {
       );
     }
 
-    // Crea relaciones (si ya existe, ignora)
+    // opcional: bloquea asignación de módulos inactivos en catálogo
+    const inactive = found.filter((m) => !m.isActive).map((m) => m.id);
+    if (inactive.length) {
+      throw new ConflictException(
+        `No puedes asignar módulos inactivos: ${inactive.join(', ')}`,
+      );
+    }
+
+    // 2) valida que estén habilitados para la company del usuario
+    const enabledSet = await this.getEnabledCompanyModuleIds(user.companyId);
+
+    const notEnabled = moduleIds.filter((mid) => !enabledSet.has(mid));
+    if (notEnabled.length) {
+      throw new ConflictException(
+        `No puedes asignar módulos no habilitados para la empresa: ${notEnabled.join(', ')}`,
+      );
+    }
+
+    // 3) crea relaciones (si ya existe, ignora)
     await this.prisma.userModule.createMany({
       data: moduleIds.map((moduleId) => ({ userId, moduleId })),
       skipDuplicates: true,
@@ -171,21 +200,11 @@ export class UserService {
     return this.getModules(userId);
   }
 
-  async removeModule(userId: string, moduleId: string) {
-    await this.findOne(userId);
-
-    // borra si existe (idempotente)
-    await this.prisma.userModule.deleteMany({
-      where: { userId, moduleId },
+  private async getEnabledCompanyModuleIds(companyId: string) {
+    const rows = await this.prisma.companyModule.findMany({
+      where: { companyId, isEnabled: true },
+      select: { moduleId: true },
     });
-
-    return this.getModules(userId);
-  }
-
-  async clearModules(userId: string) {
-    await this.findOne(userId);
-
-    await this.prisma.userModule.deleteMany({ where: { userId } });
-    return [];
+    return new Set(rows.map((r) => r.moduleId));
   }
 }

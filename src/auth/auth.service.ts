@@ -15,9 +15,7 @@ export class AuthService {
       where: { username },
       include: {
         modules: {
-          include: {
-            module: true,
-          },
+          include: { module: true }, // user_module -> module
         },
       },
     });
@@ -37,10 +35,24 @@ export class AuthService {
 
     const access_token = await this.jwt.signAsync(payload);
 
-    // ✅ Transformamos la relación (user_module) en lista de módulos
-    const modules = user.modules
+    // ✅ Traer módulos habilitados para la empresa
+    const enabledCompanyModules = await this.prisma.companyModule.findMany({
+      where: {
+        companyId: user.companyId,
+        isEnabled: true,
+      },
+      select: { moduleId: true },
+    });
+
+    const enabledSet = new Set(enabledCompanyModules.map((x) => x.moduleId));
+
+    // ✅ Módulos efectivos:
+    // - asignados al usuario
+    // - habilitados para su empresa
+    // - activos en catálogo
+    const effectiveModules = user.modules
       .map((um) => um.module)
-      .filter((m) => m.isActive); // opcional: solo activos
+      .filter((m) => m.isActive && enabledSet.has(m.id));
 
     const company = await this.prisma.company.findUnique({
       where: { id: user.companyId },
@@ -63,7 +75,7 @@ export class AuthService {
         legalName: company?.legalName,
         rfc: company?.rfc,
       },
-      modules: modules.map((m) => ({
+      modules: effectiveModules.map((m) => ({
         id: m.id,
         key: m.key,
         name: m.name,
